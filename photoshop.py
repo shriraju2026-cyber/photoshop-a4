@@ -1,0 +1,80 @@
+import os
+from PIL import Image
+from pillow_heif import register_heif_opener
+
+# AVIF format support kosam register chestundi
+register_heif_opener()
+
+# --- UPDATED PATHS ---
+INPUT_FOLDER = r"C:\Users\JANAK\Desktop\New folder (4)"
+OUTPUT_FOLDER = r"C:\Users\JANAK\Desktop\New folder (4)\New folder"
+
+# A4 dimensions at 300 DPI
+A4_WIDTH = 2480
+A4_HEIGHT = 3508
+
+# Grid cell dimensions (2x2 grid)
+CELL_WIDTH = A4_WIDTH // 2   # 1240 pixels
+CELL_HEIGHT = A4_HEIGHT // 2 # 1754 pixels
+
+def process_images():
+    if not os.path.exists(OUTPUT_FOLDER):
+        os.makedirs(OUTPUT_FOLDER)
+
+    # AVIF kooda include chesamu
+    valid_extensions = ('.jpg', '.jpeg', '.png', '.avif', '.bmp', '.tiff')
+    
+    images = [os.path.join(INPUT_FOLDER, f) for f in os.listdir(INPUT_FOLDER) 
+              if f.lower().endswith(valid_extensions)]
+    
+    images.sort()
+    
+    if not images:
+        print("Folder lo images emi levu! Path check cheyyandi.")
+        return
+
+    page_num = 1
+    total_images = len(images)
+    print(f"Total ga {total_images} images dorikayi. Processing start ayyindi...")
+
+    for i in range(0, total_images, 4):
+        batch = images[i:i+4]
+        
+        # A4 Canvas
+        a4_page = Image.new("RGB", (A4_WIDTH, A4_HEIGHT), (255, 255, 255))
+        
+        positions = [
+            (0, 0),                       # Top-Left
+            (CELL_WIDTH, 0),              # Top-Right
+            (0, CELL_HEIGHT),             # Bottom-Left
+            (CELL_WIDTH, CELL_HEIGHT)     # Bottom-Right
+        ]
+        
+        for idx, img_path in enumerate(batch):
+            try:
+                img = Image.open(img_path)
+                img = img.convert("RGB")
+                
+                # Landscape aite portrait ki rotate cheyyandi (No crop)
+                if img.width > img.height:
+                    img = img.rotate(90, expand=True)
+                
+                # Resize directly to exact cell dimensions (Full fit)
+                img_resized = img.resize((CELL_WIDTH, CELL_HEIGHT), Image.Resampling.LANCZOS)
+                
+                # Paste onto A4 canvas
+                a4_page.paste(img_resized, positions[idx])
+                
+            except Exception as e:
+                print(f"Error loading {img_path}: {e}")
+        
+        output_path = os.path.join(OUTPUT_FOLDER, f"A4_FullFit_Sheet_{page_num}.jpg")
+        a4_page.save(output_path, "JPEG", quality=95)
+        print(f"Saved: {output_path}")
+        page_num += 1
+
+    print("Process complete! Anni AVIF/JPG photos full fit ayyayi.")
+
+if __name__ == "__main__":
+    process_images()
+    input("\nProcess complete aindi! Bayataki rakadam kosam Enter press cheyyandi...")
